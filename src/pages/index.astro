@@ -45,9 +45,15 @@ const recentPosts = sortedPosts.filter(({ data }) => !data.featured);
           ]}
         >
           <h2 class="text-2xl font-semibold tracking-wide">精选文章</h2>
-          <ul>
+          <ul class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 md:grid-flow-dense">
             {featuredPosts.map(data => (
-              <Card variant="h3" {...data} />
+              <Card 
+                variant="h3" 
+                {...data} 
+                class:list={[
+                  data.data.title.length > 20 ? "md:col-span-2" : "col-span-1"
+                ]}
+              />
             ))}
           </ul>
         </section>
@@ -58,10 +64,18 @@ const recentPosts = sortedPosts.filter(({ data }) => !data.featured);
       recentPosts.length > 0 && (
         <section id="recent-posts" class="pt-12 pb-6">
           <h2 class="text-2xl font-semibold tracking-wide">最新文章</h2>
-          <ul>
+          <ul class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 md:grid-flow-dense">
             {recentPosts.map(
               (data, index) =>
-                index < SITE.postPerIndex && <Card variant="h3" {...data} />
+                index < SITE.postPerIndex && (
+                  <Card 
+                    variant="h3" 
+                    {...data} 
+                    class:list={[
+                      data.data.title.length > 20 ? "md:col-span-2" : "col-span-1"
+                    ]}
+                  />
+                )
             )}
           </ul>
         </section>
