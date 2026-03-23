@@ -92,21 +92,28 @@ def extract_title(text):
     return title
 
 
-def create_post(title, content, date, tags=None):
+def create_post(title, content, date, msg_id=None, tags=None):
     """创建博客文章"""
     if tags is None:
         tags = ['杂志', '资源']
     
-    # 生成文件名
-    slug = re.sub(r'[^\w\-]', '', title.lower().replace(' ', '-'))[:50]
-    date_str = date.strftime('%Y-%m-%d')
-    filename = f"{date_str}-{slug}.md"
+    # 生成文件名（优先用消息ID，否则用标题）
+    if msg_id:
+        filename = f"{msg_id}.md"
+    else:
+        slug = re.sub(r'[^\w\-]', '', title.lower().replace(' ', '-'))[:50]
+        date_str = date.strftime('%Y-%m-%d')
+        filename = f"{date_str}-{slug}.md"
+    
     filepath = BLOG_POSTS_DIR / filename
     
     # 防止重名
     counter = 1
     while filepath.exists():
-        filename = f"{date_str}-{slug}-{counter}.md"
+        if msg_id:
+            filename = f"{msg_id}-{counter}.md"
+        else:
+            filename = f"{date_str}-{slug}-{counter}.md"
         filepath = BLOG_POSTS_DIR / filename
         counter += 1
     
@@ -115,9 +122,9 @@ def create_post(title, content, date, tags=None):
     
     # 构建文章内容
     post_content = f"""---
-title: {title}
+title: "{title}"
 author: 读库
-description: {title}
+description: "{title}"
 pubDatetime: {date.isoformat()}
 modDatetime: {date.isoformat()}
 draft: false
