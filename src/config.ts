@@ -1,8 +1,8 @@
 export const SITE = {
   website: "https://imperial-blog.pages.dev/", // replace this with your deployed domain
-  author: "陛下",
+  author: "读库",
   profile: "https://imperial-blog.pages.dev/",
-  desc: "陛下的私人博客，记录生活与思考",
+  desc: "分享知识与思考",
   title: "读库",
   ogImage: "astropaper-og.jpg",
   lightAndDarkMode: true,
