@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
-Telegram 频道同步脚本（Bot 版本）
+Telegram 频道同步脚本（Bot 版本 - 异步）
 从 Telegram 频道获取内容并同步到博客
 """
-# 强制刷新提交
-
 
 import os
 import sys
@@ -12,6 +10,7 @@ import json
 import logging
 import html
 import re
+import asyncio
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -20,7 +19,7 @@ try:
     from telegram import Bot
     from telegram.error import TelegramError
 except ImportError:
-    print("请安装依赖: pip install python-telegram-bot==13.7")
+    print("请安装依赖: pip install python-telegram-bot>=20.0")
     sys.exit(1)
 
 # 配置日志
@@ -135,7 +134,7 @@ tags: {tags}
     return filepath
 
 
-def sync_channel():
+async def sync_channel():
     """同步频道内容"""
     if not BOT_TOKEN:
         logger.error("请配置 TELEGRAM_BOT_TOKEN 环境变量")
@@ -145,7 +144,7 @@ def sync_channel():
         bot = Bot(token=BOT_TOKEN)
         
         # 测试连接
-        me = bot.get_me()
+        me = await bot.get_me()
         logger.info(f"机器人登录成功: {me.username}")
         
         # 加载同步状态
@@ -155,7 +154,7 @@ def sync_channel():
         logger.info(f"开始同步频道 @{CHANNEL_USERNAME}，上次同步到消息 ID: {last_message_id}")
         
         # 获取频道消息
-        # 注意：python-telegram-bot v13 没有直接获取历史消息的方法
+        # 注意：python-telegram-bot 没有直接获取历史消息的方法
         # 这里我们用一个简化的方案，先创建一个示例文章
         logger.info("注意：由于 Telegram Bot API 限制，需要用其他方式获取历史消息")
         logger.info("当前创建示例文章...")
@@ -202,7 +201,7 @@ def main():
     logger.info("开始同步 Telegram 频道...")
     logger.info("=" * 50)
     
-    success = sync_channel()
+    success = asyncio.run(sync_channel())
     
     if success:
         logger.info("同步完成！")
