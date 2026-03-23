@@ -133,7 +133,7 @@ tags: {tags}
     return filepath
 
 
-async def sync_channel():
+def sync_channel():
     """同步频道内容"""
     if not BOT_TOKEN:
         logger.error("请配置 TELEGRAM_BOT_TOKEN 环境变量")
@@ -143,7 +143,7 @@ async def sync_channel():
         bot = Bot(token=BOT_TOKEN)
         
         # 测试连接
-        me = await bot.get_me()
+        me = bot.get_me()
         logger.info(f"机器人登录成功: {me.username}")
         
         # 加载同步状态
@@ -196,13 +196,11 @@ async def sync_channel():
 
 def main():
     """主函数"""
-    import asyncio
-    
     logger.info("=" * 50)
     logger.info("开始同步 Telegram 频道...")
     logger.info("=" * 50)
     
-    success = asyncio.run(sync_channel())
+    success = sync_channel()
     
     if success:
         logger.info("同步完成！")
