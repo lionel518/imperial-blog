@@ -3,7 +3,7 @@ export const SITE = {
   author: "陛下",
   profile: "https://imperial-blog.pages.dev/",
   desc: "陛下的私人博客，记录生活与思考",
-  title: "陛下的博客",
+  title: "读库",
   ogImage: "astropaper-og.jpg",
   lightAndDarkMode: true,
   postPerIndex: 4,
