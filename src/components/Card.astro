@@ -15,7 +15,7 @@ const { title, description, heroImage, ...props } = data;
 
 <li class="group relative overflow-hidden rounded-[2rem] border border-white/20 bg-white/5 transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl h-full min-h-[350px]">
   
-  <a href={getPath(id)} class="block h-full w-full">
+  <a href={getPath(id, filePath)} class="block h-full w-full">
     
     {heroImage && (
       <div class="absolute inset-0 z-0">
