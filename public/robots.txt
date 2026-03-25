@@ -1,0 +1,8 @@
+# robots.txt for Imperial Blog
+# https://imperial-blog.pages.dev/
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://imperial-blog.pages.dev/sitemap-index.xml
