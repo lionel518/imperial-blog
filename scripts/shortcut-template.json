@@ -1,0 +1,51 @@
+{
+  "name": "写博客",
+  "description": "快速发布博客到Telegram频道",
+  "steps": [
+    {
+      "type": "ask",
+      "prompt": "请输入博客标题",
+      "variable": "title"
+    },
+    {
+      "type": "ask",
+      "prompt": "请输入博客内容",
+      "variable": "content",
+      "multiline": true
+    },
+    {
+      "type": "menu",
+      "prompt": "是否添加图片？",
+      "options": [
+        "添加图片",
+        "不添加图片"
+      ],
+      "variable": "addImage"
+    },
+    {
+      "type": "conditional",
+      "condition": "addImage == '添加图片'",
+      "steps": [
+        {
+          "type": "selectPhoto",
+          "variable": "photo"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "template": "{{title}}\n\n{{content}}",
+      "variable": "message"
+    },
+    {
+      "type": "telegram",
+      "chatId": "@FreePeriodical",
+      "text": "{{message}}",
+      "photo": "{{photo}}"
+    },
+    {
+      "type": "showResult",
+      "text": "博客已发送到Telegram频道！\n将在3小时内自动同步到博客。"
+    }
+  ]
+}
