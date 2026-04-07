@@ -20,7 +20,15 @@ IMAGE_ASSETS_DIR = BASE_DIR / 'public' / 'assets' / 'blog'
 def convert_entities_to_markdown(text: str, entities: list[MessageEntity]) -> str:
     """将 Telegram 消息实体转换为 Markdown 格式"""
     if not entities:
+        logger.info(f"⚠️ 没有找到消息实体，原始文本: {repr(text[:200])}")
         return text
+    
+    logger.info(f"✅ 找到 {len(entities)} 个消息实体:")
+    for i, entity in enumerate(entities):
+        entity_text = text[entity.offset:entity.offset+entity.length] if entity.offset + entity.length <= len(text) else "[TEXT_OUT_OF_RANGE]"
+        logger.info(f"  [{i}] type={entity.type}, offset={entity.offset}, length={entity.length}, text={repr(entity_text)}")
+        if hasattr(entity, 'url') and entity.url:
+            logger.info(f"      url={repr(entity.url)}")
     
     # 按偏移量从后往前处理，避免修改文本后影响后续偏移量
     sorted_entities = sorted(entities, key=lambda e: e.offset, reverse=True)
@@ -29,6 +37,12 @@ def convert_entities_to_markdown(text: str, entities: list[MessageEntity]) -> st
     for entity in sorted_entities:
         start = entity.offset
         end = start + entity.length
+        
+        # 安全检查：确保偏移量在文本范围内
+        if start < 0 or end > len(text):
+            logger.warning(f"⚠️ 实体偏移量超出范围: offset={start}, length={entity.length}, text_len={len(text)}")
+            continue
+            
         entity_text = text[start:end]
         
         if entity.type == MessageEntity.TEXT_LINK:
@@ -36,10 +50,12 @@ def convert_entities_to_markdown(text: str, entities: list[MessageEntity]) -> st
             if hasattr(entity, 'url') and entity.url:
                 markdown = f"[{entity_text}]({entity.url})"
                 result = result[:start] + markdown + result[end:]
+                logger.info(f"✓ 处理 TEXT_LINK: {repr(entity_text)} -> {repr(markdown)}")
         elif entity.type == MessageEntity.URL:
-            # 纯 URL：<URL> 或直接保留
-            markdown = f"<{entity_text}>"
+            # 纯 URL：直接保留
+            markdown = entity_text
             result = result[:start] + markdown + result[end:]
+            logger.info(f"✓ 处理 URL: {repr(entity_text)}")
         elif entity.type == MessageEntity.BOLD:
             markdown = f"**{entity_text}**"
             result = result[:start] + markdown + result[end:]
@@ -68,8 +84,12 @@ def convert_entities_to_markdown(text: str, entities: list[MessageEntity]) -> st
             # @提及，直接保留
             pass
         elif entity.type == MessageEntity.HASHTAG:
-            # #话题标签，直接保留
-            pass
+            # #话题标签，链接到标签页
+            tag_name = entity_text.lstrip('#')  # 去掉 # 号
+            tag_slug = tag_name.lower().replace(' ', '-')  # 转换为 slug
+            markdown = f"[{entity_text}](/tags/{tag_slug})"
+            result = result[:start] + markdown + result[end:]
+            logger.info(f"✓ 处理 HASHTAG: {repr(entity_text)} -> {repr(markdown)}")
         elif entity.type == MessageEntity.EMAIL:
             # 邮箱，用 mailto 链接
             markdown = f"[{entity_text}](mailto:{entity_text})"
@@ -79,6 +99,7 @@ def convert_entities_to_markdown(text: str, entities: list[MessageEntity]) -> st
             markdown = f"[{entity_text}](tel:{entity_text})"
             result = result[:start] + markdown + result[end:]
     
+    logger.info(f"📝 最终转换结果（前300字符）: {repr(result[:300])}")
     return result
 
 def create_post(title, content, date, msg_id, image_rel_path=None):
@@ -87,6 +108,10 @@ def create_post(title, content, date, msg_id, image_rel_path=None):
     
     # 修复：确保内容中的双引号不会破坏 Frontmatter
     safe_title = title.replace('"', '\\"')
+    
+    # 构建 Telegram 原文链接
+    channel_username = CHANNEL_ID.lstrip('@') if CHANNEL_ID.startswith('@') else CHANNEL_ID
+    telegram_link = f"https://t.me/{channel_username}/{msg_id}"
     
     post_content = f"""---
 title: "{safe_title}"
@@ -97,6 +122,9 @@ tags: ["自动同步"]
 ---
 
 {content}
+
+---
+📌 [查看 Telegram 频道原文]({telegram_link})
 """
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(post_content)
@@ -121,12 +149,21 @@ async def sync_channel():
             msg = update.channel_post or update.message
             if not msg: continue
 
+            logger.info(f"📨 收到消息: message_id={msg.message_id}, date={msg.date}")
+            logger.info(f"   消息类型: {'channel_post' if update.channel_post else 'message'}")
+
             # 1. 提取完整内容 (优先取 caption，若无则取 text)
             raw_content = msg.caption if msg.caption else msg.text
-            if not raw_content: continue
+            if not raw_content:
+                logger.warning("⚠️ 消息内容为空，跳过")
+                continue
+            
+            logger.info(f"📝 原始内容（前200字符）: {repr(raw_content[:200])}")
             
             # 2. 获取实体并转换为 Markdown
             entities = msg.caption_entities if msg.caption else msg.entities
+            logger.info(f"🔍 实体来源: {'caption_entities' if msg.caption else 'entities'}")
+            
             full_content = convert_entities_to_markdown(raw_content, entities)
             
             # 3. 提取标题 (第一行)
