@@ -179,6 +179,9 @@ async def sync_channel():
                 await photo_file.download_to_drive(custom_path=IMAGE_ASSETS_DIR / img_name)
                 image_rel_path = f"/assets/blog/{img_name}"
                 logger.info(f"📸 图片已同步: {img_name}")
+            else:
+                logger.info(f"⏭️ 跳过纯文字帖子 (无图片): message_id={msg_id}")
+                continue
 
             # 5. 创建 Markdown
             create_post(title, full_content, msg.date, msg_id, image_rel_path)
