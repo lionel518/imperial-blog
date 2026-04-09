@@ -110,7 +110,13 @@ def create_post(title, content, date, msg_id, image_rel_path=None):
     safe_title = title.replace('"', '\\"')
     
     # 构建 Telegram 原文链接
-    channel_username = CHANNEL_ID.lstrip('@') if CHANNEL_ID.startswith('@') else CHANNEL_ID
+    if not CHANNEL_ID:
+        channel_username = "FreePeriodical"
+    else:
+        channel_username = CHANNEL_ID.lstrip('@') if CHANNEL_ID.startswith('@') else CHANNEL_ID
+    # 确保 channel_username 不为空
+    if not channel_username:
+        channel_username = "FreePeriodical"
     telegram_link = f"https://t.me/{channel_username}/{msg_id}"
     
     post_content = f"""---
