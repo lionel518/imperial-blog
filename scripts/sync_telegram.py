@@ -118,6 +118,8 @@ def create_post(title, content, date, msg_id, image_rel_path=None):
     if not channel_username:
         channel_username = "FreePeriodical"
     telegram_link = f"https://t.me/{channel_username}/{msg_id}"
+    # 最终保险：确保链接中不会出现 "//"
+    telegram_link = telegram_link.replace("https://t.me//", "https://t.me/FreePeriodical/")
     
     post_content = f"""---
 title: "{safe_title}"
