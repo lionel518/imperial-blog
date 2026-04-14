@@ -6,3 +6,4 @@ Allow: /
 
 # Sitemap location
 Sitemap: https://themagazine.top/rss.xml
+Sitemap: https://themagazine.top/sitemap-index.xml
