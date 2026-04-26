@@ -124,7 +124,7 @@ def create_post(title, content, date, msg_id, image_rel_path=None):
     post_content = f"""---
 title: "{safe_title}"
 pubDatetime: {date.isoformat()}
-description: "{safe_title}"
+description: "{safe_desc}"
 heroImage: "{image_rel_path if image_rel_path else ''}"
 tags: ["自动同步"]
 ---
