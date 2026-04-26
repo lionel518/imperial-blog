@@ -178,7 +178,12 @@ async def sync_channel():
             title = raw_content.split('\n')[0][:60]
             msg_id = msg.message_id
             
-            # 4. 处理图片下载
+            # 4. 检查是否有按钮（inline keyboard），跳过
+            if msg.reply_markup and hasattr(msg.reply_markup, 'inline_keyboard') and msg.reply_markup.inline_keyboard:
+                logger.info(f"⏭️ 跳过带按钮的帖子: message_id={msg_id}")
+                continue
+
+            # 5. 处理图片下载
             image_rel_path = ""
             if msg.photo:
                 IMAGE_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
@@ -191,7 +196,7 @@ async def sync_channel():
                 logger.info(f"⏭️ 跳过纯文字帖子 (无图片): message_id={msg_id}")
                 continue
 
-            # 5. 创建 Markdown
+            # 6. 创建 Markdown
             create_post(title, full_content, msg.date, msg_id, image_rel_path)
 
         return True
