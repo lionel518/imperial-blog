@@ -188,6 +188,11 @@ async def sync_channel():
                 # 提取标题
                 title = raw_content.split('\n')[0][:60]
 
+                # 跳过带按钮的帖子
+                if msg.reply_markup and hasattr(msg.reply_markup, 'inline_keyboard') and msg.reply_markup.inline_keyboard:
+                    logger.info(f"⏭️ 跳过带按钮的帖子: message_id={msg.message_id}")
+                    continue
+
                 # 处理图片
                 image_rel_path = None
                 if msg.photo:
@@ -197,6 +202,9 @@ async def sync_channel():
                     await photo_file.download_to_drive(custom_path=IMAGE_ASSETS_DIR / img_name)
                     image_rel_path = f"/assets/blog/{img_name}"
                     logger.info(f"📸 图片已下载: {img_name}")
+                else:
+                    logger.info(f"⏭️ 跳过纯文字帖子 (无图片): message_id={msg.message_id}")
+                    continue
 
                 # 创建文章
                 create_post(title, full_content, msg.date, msg.message_id, image_rel_path)
