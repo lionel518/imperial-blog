@@ -47,10 +47,9 @@ def convert_entities_to_markdown(text, entities):
     if not entities or not text:
         return text
 
-    # 按偏移量从后往前处理
     sorted_entities = sorted(entities, key=lambda e: e.get('offset', 0), reverse=True)
-
     result = text
+
     for entity in sorted_entities:
         offset = entity.get('offset', 0)
         length = entity.get('length', 0)
@@ -63,8 +62,7 @@ def convert_entities_to_markdown(text, entities):
         entity_text = text[offset:offset + length]
 
         if entity_type == 'text_link' and url:
-            markdown = f'[{entity_text}]({url})'
-            result = result[:offset] + markdown + result[offset + length:]
+            result = result[:offset] + f'[{entity_text}]({url})' + result[offset + length:]
         elif entity_type == 'url':
             result = result[:offset] + entity_text + result[offset + length:]
         elif entity_type == 'bold':
@@ -81,16 +79,13 @@ def convert_entities_to_markdown(text, entities):
             result = result[:offset] + f'`{entity_text}`' + result[offset + length:]
         elif entity_type == 'pre':
             lang = entity.get('language', '')
-            markdown = f'```{lang}\n{entity_text}\n```'
-            result = result[:offset] + markdown + result[offset + length:]
+            result = result[:offset] + f'```{lang}\n{entity_text}\n```' + result[offset + length:]
         elif entity_type == 'hashtag':
             tag_name = entity_text.lstrip('#')
             tag_slug = tag_name.lower().replace(' ', '-')
-            markdown = f'[{entity_text}](/tags/{tag_slug})'
-            result = result[:offset] + markdown + result[offset + length:]
+            result = result[:offset] + f'[{entity_text}](/tags/{tag_slug})' + result[offset + length:]
         elif entity_type == 'email':
-            markdown = f'[{entity_text}](mailto:{entity_text})'
-            result = result[:offset] + markdown + result[offset + length:]
+            result = result[:offset] + f'[{entity_text}](mailto:{entity_text})' + result[offset + length:]
 
     return result
 
@@ -101,7 +96,6 @@ def create_post(title, content, date_str, msg_id, image_rel_path=None):
     filepath = BLOG_POSTS_DIR / f'{msg_id}.md'
 
     safe_title = title.replace('"', '\\"')[:60]
-
     desc_lines = content.split('\n')
     safe_desc = desc_lines[0][:150] if desc_lines else ''
     safe_desc = safe_desc.replace('"', '\\"')
@@ -144,27 +138,24 @@ def sync_channel():
     channel_username = CHANNEL_ID.lstrip('@')
     logger.info(f'📡 开始同步频道: @{channel_username}')
 
-    # 先验证频道可访问
+    # 验证频道可访问
     chat_info = api_call('getChat', chat_id=f'@{channel_username}')
     if not chat_info:
         logger.error(f'❌ 无法访问频道 @{channel_username}，请确认 Bot 是频道管理员')
         return False
-
     logger.info(f'📋 频道标题: {chat_info.get("title", "unknown")}')
 
-    # 分批获取，每次最多 100 条
-    offset_id = 0  # 从最新开始，往下取
+    # 首次调用 getChatHistory 不带 offset，从最新消息开始
+    offset = 0
     total_synced = 0
     new_last_id = last_synced_id
 
     while True:
-        # getChatHistory: offset=0 表示从最新消息开始，limit=100
-        # 要从后往前取，我们需要 max_id 作为上界
         result = api_call(
             'getChatHistory',
             chat_id=f'@{channel_username}',
             limit=100,
-            max_id=last_synced_id  # 只取 last_synced_id 之前的消息
+            offset=offset
         )
 
         if result is None:
@@ -176,17 +167,19 @@ def sync_channel():
             logger.info('📭 频道没有更多历史消息了')
             break
 
-        logger.info(f'📦 本批获取到 {len(messages)} 条消息')
+        logger.info(f'📦 本批获取到 {len(messages)} 条消息 (offset={offset})')
 
-        for msg in messages:
+        for msg in reversed(messages):
+            # reversed：从这批最旧的消息开始（时间顺序）
             msg_id = msg.get('message_id', 0)
             if msg_id <= last_synced_id:
-                continue
+                # 遇到已同步的消息，说明这批之前的都同步过了
+                logger.info(f'⏭️ 遇到已同步消息 {msg_id} <= {last_synced_id}，停止')
+                break
 
             # 获取文字内容
             raw_content = msg.get('caption', '') or msg.get('text', '')
             if not raw_content:
-                logger.info(f'⏭️ 跳过空消息: {msg_id}')
                 continue
 
             # 转换实体
@@ -196,7 +189,7 @@ def sync_channel():
             # 提取标题
             title = raw_content.split('\n')[0][:60]
 
-            # 检查是否有 inline keyboard（按钮）
+            # 检查按钮
             reply_markup = msg.get('reply_markup')
             if reply_markup and reply_markup.get('inline_keyboard'):
                 logger.info(f'⏭️ 跳过带按钮的帖子: message_id={msg_id}')
@@ -206,7 +199,6 @@ def sync_channel():
             image_rel_path = None
             photo = msg.get('photo')
             if photo:
-                # photo 是数组，选最大的那张
                 best_photo = photo[-1]
                 file_id = best_photo.get('file_id')
                 if file_id:
@@ -238,8 +230,14 @@ def sync_channel():
             new_last_id = msg_id
             total_synced += 1
 
+        # 如果这批消息里最旧的 <= last_synced_id，说明全部同步完了
+        if messages and messages[0].get('message_id', 0) <= last_synced_id:
+            break
+
+        # 否则用最旧消息的 ID 作为下次 offset，继续往前翻
         if len(messages) < 100:
             break
+        offset = messages[0].get('message_id', 0)
 
     if total_synced > 0:
         save_state(new_last_id)
