@@ -30,7 +30,7 @@ def load_state():
 def save_state(last_message_id):
     """保存同步状态"""
     with open(STATE_FILE, 'w') as f:
-        json.dump({'last_message_id': last_message_id}, f)
+        json.dump({'last_message_id': int(last_message_id)}, f)
     logger.info(f"✅ 已保存同步状态: last_message_id={last_message_id}")
 
 
@@ -145,7 +145,7 @@ async def sync_channel():
 
     try:
         state = load_state()
-        last_synced_id = state.get('last_message_id', 0)
+        last_synced_id = int(state.get('last_message_id', 0))
         logger.info(f"📍 上次同步到 message_id: {last_synced_id}")
 
         # 获取频道 ID
