@@ -172,35 +172,42 @@ def sync_channel():
         for msg in reversed(messages):
             # reversed：从这批最旧的消息开始（时间顺序）
             msg_id = msg.get('message_id', 0)
+            msg_type = msg.get('type', 'unknown')
+            logger.info(f'  🔍 消息 {msg_id} type={msg_type}')
+
             if msg_id <= last_synced_id:
                 # 遇到已同步的消息，说明这批之前的都同步过了
-                logger.info(f'⏭️ 遇到已同步消息 {msg_id} <= {last_synced_id}，停止')
+                logger.info(f'  ⏭️ 遇到已同步消息 {msg_id} <= {last_synced_id}，停止')
                 break
 
             # 获取文字内容
             raw_content = msg.get('caption', '') or msg.get('text', '')
-            if not raw_content:
-                continue
+            has_content = bool(raw_content)
+            logger.info(f'  📝 has_content={has_content} content_len={len(raw_content) if raw_content else 0}')
 
             # 转换实体
             entities = msg.get('caption_entities', []) or msg.get('entities', [])
-            full_content = convert_entities_to_markdown(raw_content, entities)
+            full_content = convert_entities_to_markdown(raw_content, entities) if has_content else ''
 
             # 提取标题
-            title = raw_content.split('\n')[0][:60]
+            title = raw_content.split('\n')[0][:60] if has_content else ''
 
             # 检查按钮
             reply_markup = msg.get('reply_markup')
-            if reply_markup and reply_markup.get('inline_keyboard'):
-                logger.info(f'⏭️ 跳过带按钮的帖子: message_id={msg_id}')
+            has_buttons = bool(reply_markup and reply_markup.get('inline_keyboard'))
+            logger.info(f'  🔘 has_buttons={has_buttons}')
+            if has_buttons:
+                logger.info(f'  ⏭️ 跳过带按钮的帖子: message_id={msg_id}')
                 continue
 
             # 下载图片
             image_rel_path = None
             photo = msg.get('photo')
+            logger.info(f'  🖼️ has_photo={bool(photo)}')
             if photo:
                 best_photo = photo[-1]
                 file_id = best_photo.get('file_id')
+                logger.info(f'  📥 正在下载图片 file_id={file_id}')
                 if file_id:
                     IMAGE_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
                     img_name = f'{msg_id}.jpg'
@@ -217,14 +224,17 @@ def sync_channel():
                         with open(IMAGE_ASSETS_DIR / img_name, 'wb') as img_f:
                             img_f.write(img_data)
                         image_rel_path = f'/assets/blog/{img_name}'
-                        logger.info(f'📸 图片已下载: {img_name}')
+                        logger.info(f'  ✅ 图片下载成功: {img_name} size={len(img_data)}')
+                    else:
+                        logger.info(f'  ❌ getFile 失败: {file_data}')
             else:
-                logger.info(f'⏭️ 跳过纯文字帖子 (无图片): message_id={msg_id}')
+                logger.info(f'  ⏭️ 跳过纯文字帖子 (无图片): message_id={msg_id}')
                 continue
 
             # 日期
             date_ts = msg.get('date', 0)
             date_str = datetime.utcfromtimestamp(date_ts).strftime('%Y-%m-%dT%H:%M:%SZ')
+            logger.info(f'  ✅ 准备创建文章: msg_id={msg_id} title={title[:20]}')
 
             create_post(title, full_content, date_str, msg_id, image_rel_path)
             new_last_id = msg_id
