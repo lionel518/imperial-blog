@@ -149,6 +149,7 @@ def sync_channel():
     offset = 0
     total_synced = 0
     new_last_id = last_synced_id
+    all_synced = False
 
     while True:
         result = api_call(
@@ -169,16 +170,20 @@ def sync_channel():
 
         logger.info(f'📦 本批获取到 {len(messages)} 条消息 (offset={offset})')
 
-        for msg in reversed(messages):
-            # reversed：从这批最旧的消息开始（时间顺序）
+        for msg in messages:
+            # messages 本身是按时间倒序的（最新在前），直接遍历即可
             msg_id = msg.get('message_id', 0)
             msg_type = msg.get('type', 'unknown')
             logger.info(f'  🔍 消息 {msg_id} type={msg_type}')
 
             if msg_id <= last_synced_id:
-                # 遇到已同步的消息，说明这批之前的都同步过了
-                logger.info(f'  ⏭️ 遇到已同步消息 {msg_id} <= {last_synced_id}，停止')
+                # 遇到已同步的消息，说明这批更旧的消息都同步过了，停止翻页
+                logger.info(f'  ⏭️ 遇到已同步消息 {msg_id} <= {last_synced_id}，停止翻页')
+                all_synced = True
                 break
+
+        if all_synced:
+            break
 
             # 获取文字内容
             raw_content = msg.get('caption', '') or msg.get('text', '')
@@ -240,14 +245,14 @@ def sync_channel():
             new_last_id = msg_id
             total_synced += 1
 
-        # 如果这批消息里最旧的 <= last_synced_id，说明全部同步完了
-        if messages and messages[0].get('message_id', 0) <= last_synced_id:
+        # 如果这批最旧的消息 <= last_synced_id，说明整批都已同步，停止翻页
+        if messages and messages[-1].get('message_id', 0) <= last_synced_id:
             break
 
-        # 否则用最旧消息的 ID 作为下次 offset，继续往前翻
+        # 否则用最旧消息的 ID - 1 作为下次 offset，继续往前翻
         if len(messages) < 100:
             break
-        offset = messages[0].get('message_id', 0)
+        offset = messages[-1].get('message_id', 0) - 1
 
     if total_synced > 0:
         save_state(new_last_id)
