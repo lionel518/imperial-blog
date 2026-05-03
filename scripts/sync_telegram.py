@@ -145,45 +145,68 @@ def sync_channel():
         return False
     logger.info(f'📋 频道标题: {chat_info.get("title", "unknown")}')
 
-    # 首次调用 getChatHistory 不带 offset，从最新消息开始
-    offset = 0
+    # 使用 getUpdates 获取频道消息（getChatHistory 需要 API 6.8+，此 bot 版本较旧）
     total_synced = 0
     new_last_id = last_synced_id
-    all_synced = False
 
     while True:
-        result = api_call(
-            'getChatHistory',
-            chat_id=f'@{channel_username}',
-            limit=100,
-            offset=offset
-        )
-
-        if result is None:
-            logger.error('❌ getChatHistory API 调用失败')
+        # getUpdates 返回所有未确认的更新，POST 方式（不是 GET）
+        resp = requests.post(f'{API_BASE}/getUpdates', timeout=30)
+        data = resp.json()
+        if not data.get('ok'):
+            logger.error(f'❌ getUpdates API 调用失败: {data}')
             break
 
-        messages = result.get('messages', [])
-        if not messages:
-            logger.info('📭 频道没有更多历史消息了')
+        updates = data.get('result', [])
+        if not updates:
+            logger.info('📭 没有更多新消息')
             break
 
-        logger.info(f'📦 本批获取到 {len(messages)} 条消息 (offset={offset})')
+        logger.info(f'📦 本批获取到 {len(updates)} 条更新')
 
-        for msg in messages:
-            # messages 本身是按时间倒序的（最新在前），直接遍历即可
+        # 筛选出频道帖子，并按 message_id 倒序（从新到旧）
+        channel_posts = []
+        for upd in updates:
+            channel_post = upd.get('channel_post') or upd.get('edited_channel_post')
+            if not channel_post:
+                continue
+            chat = channel_post.get('chat', {})
+            chat_id = chat.get('id')
+            # 匹配频道 ID（数字格式）
+            if str(chat_id) == str(chat_info.get('id')):
+                channel_posts.append(channel_post)
+
+        if not channel_posts:
+            logger.info('📭 本批没有频道帖子')
+            break
+
+        # 按 message_id 倒序：最新在前
+        channel_posts.sort(key=lambda m: m.get('message_id', 0), reverse=True)
+
+        # 处理每条消息（最新 -> 最旧）
+        batch_newest_id = channel_posts[0].get('message_id', 0)
+        batch_oldest_id = channel_posts[-1].get('message_id', 0)
+
+        # 确认已读的 update_id，下次 getUpdates 只返回更新的
+        max_update_id = max(upd.get('update_id', 0) for upd in updates)
+
+        # 如果最旧消息 <= last_synced_id，说明整批都同步过了
+        if batch_oldest_id <= last_synced_id:
+            logger.info(f'  ⏭️ 本批最旧消息 {batch_oldest_id} <= 已同步 {last_synced_id}，跳过')
+            # 确认这批更新已读，继续检查是否有新的
+            resp = requests.post(f'{API_BASE}/getUpdates', timeout=30, data={'offset': max_update_id + 1})
+            break
+
+        logger.info(f'  📬 本批消息范围: {batch_newest_id} ~ {batch_oldest_id}')
+        logger.info(f'  📬 确认 offset update_id: {max_update_id + 1}')
+
+        for msg in channel_posts:
             msg_id = msg.get('message_id', 0)
-            msg_type = msg.get('type', 'unknown')
-            logger.info(f'  🔍 消息 {msg_id} type={msg_type}')
 
+            # 遇到已同步消息，停止
             if msg_id <= last_synced_id:
-                # 遇到已同步的消息，说明这批更旧的消息都同步过了，停止翻页
-                logger.info(f'  ⏭️ 遇到已同步消息 {msg_id} <= {last_synced_id}，停止翻页')
-                all_synced = True
+                logger.info(f'  ⏭️ 遇到已同步消息 {msg_id} <= {last_synced_id}，停止')
                 break
-
-        if all_synced:
-            break
 
             # 获取文字内容
             raw_content = msg.get('caption', '') or msg.get('text', '')
@@ -245,14 +268,8 @@ def sync_channel():
             new_last_id = msg_id
             total_synced += 1
 
-        # 如果这批最旧的消息 <= last_synced_id，说明整批都已同步，停止翻页
-        if messages and messages[-1].get('message_id', 0) <= last_synced_id:
-            break
-
-        # 否则用最旧消息的 ID - 1 作为下次 offset，继续往前翻
-        if len(messages) < 100:
-            break
-        offset = messages[-1].get('message_id', 0) - 1
+        # 确认已读的 update_id，防止下次重复获取
+        requests.post(f'{API_BASE}/getUpdates', timeout=30, data={'offset': max_update_id + 1})
 
     if total_synced > 0:
         save_state(new_last_id)
