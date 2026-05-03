@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: '0 * * * *'  # 每小时运行一次
   workflow_dispatch:  # 支持手动触发
+    inputs:
+      backfill_from:
+        description: '从该 message_id 开始补全图片（留空则正常同步）'
+        required: false
+        type: string
+      dry_run:
+        description: 'DRY_RUN=true 时不更新 sync_state'
+        required: false
+        type: string
 
 permissions:
   contents: write  # 必须：允许脚本提交 Markdown 文件
@@ -29,6 +38,8 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL: ${{ secrets.TELEGRAM_CHANNEL }}
+          BACKFILL_FROM: ${{ inputs.backfill_from }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           cd scripts
           python sync_telegram.py
