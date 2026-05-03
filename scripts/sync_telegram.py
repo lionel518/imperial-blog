@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import requests
 import logging
@@ -135,6 +136,13 @@ def sync_channel():
     last_synced_id = int(state.get('last_message_id', 0))
     logger.info(f'📍 上次同步到 message_id: {last_synced_id}')
 
+    # 如果指定了 BACKFILL_FROM 环境变量，从该 ID 开始重新拉取（用于补全缺失的图片）
+    # 使用方式：BACKFILL_FROM=6900 python sync_telegram.py
+    backfill_from = os.getenv('BACKFILL_FROM')
+    if backfill_from:
+        last_synced_id = max(0, int(backfill_from) - 1)
+        logger.info(f'🔧 补全模式：从 message_id {last_synced_id + 1} 开始重新拉取（仅补图片，已有的 .md 会跳过）')
+
     channel_username = CHANNEL_ID.lstrip('@')
     logger.info(f'📡 开始同步频道: @{channel_username}')
 
@@ -228,7 +236,7 @@ def sync_channel():
                 logger.info(f'  ⏭️ 跳过带按钮的帖子: message_id={msg_id}')
                 continue
 
-            # 下载图片
+            # 下载图片（BACKFILL 模式：图片缺失也重新下载）
             image_rel_path = None
             photo = msg.get('photo')
             logger.info(f'  🖼️ has_photo={bool(photo)}')
@@ -239,22 +247,28 @@ def sync_channel():
                 if file_id:
                     IMAGE_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
                     img_name = f'{msg_id}.jpg'
-                    file_resp = requests.get(
-                        f'{API_BASE}/getFile',
-                        params={'file_id': file_id},
-                        timeout=30
-                    )
-                    file_data = file_resp.json()
-                    if file_data.get('ok'):
-                        file_path = file_data['result']['file_path']
-                        file_url = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}'
-                        img_data = requests.get(file_url, timeout=60).content
-                        with open(IMAGE_ASSETS_DIR / img_name, 'wb') as img_f:
-                            img_f.write(img_data)
+                    img_path = IMAGE_ASSETS_DIR / img_name
+                    # 图片已存在则跳过（除非是 BACKFILL 模式强制重下）
+                    if img_path.exists() and not backfill_from:
                         image_rel_path = f'/assets/blog/{img_name}'
-                        logger.info(f'  ✅ 图片下载成功: {img_name} size={len(img_data)}')
+                        logger.info(f'  ⏭️ 图片已存在，跳过: {img_name}')
                     else:
-                        logger.info(f'  ❌ getFile 失败: {file_data}')
+                        file_resp = requests.get(
+                            f'{API_BASE}/getFile',
+                            params={'file_id': file_id},
+                            timeout=30
+                        )
+                        file_data = file_resp.json()
+                        if file_data.get('ok'):
+                            file_path = file_data['result']['file_path']
+                            file_url = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}'
+                            img_data = requests.get(file_url, timeout=60).content
+                            with open(img_path, 'wb') as img_f:
+                                img_f.write(img_data)
+                            image_rel_path = f'/assets/blog/{img_name}'
+                            logger.info(f'  ✅ 图片下载成功: {img_name} size={len(img_data)}')
+                        else:
+                            logger.info(f'  ❌ getFile 失败: {file_data}')
             else:
                 logger.info(f'  ⏭️ 跳过纯文字帖子 (无图片): message_id={msg_id}')
                 continue
@@ -264,16 +278,39 @@ def sync_channel():
             date_str = datetime.utcfromtimestamp(date_ts).strftime('%Y-%m-%dT%H:%M:%SZ')
             logger.info(f'  ✅ 准备创建文章: msg_id={msg_id} title={title[:20]}')
 
-            create_post(title, full_content, date_str, msg_id, image_rel_path)
-            new_last_id = msg_id
-            total_synced += 1
+            # 如果 .md 已存在，仅更新 heroImage（BACKFILL 模式）
+            md_path = BLOG_POSTS_DIR / f'{msg_id}.md'
+            if md_path.exists():
+                existing_content = md_path.read_text(encoding='utf-8')
+                if image_rel_path:
+                    # 更新 heroImage
+                    new_content = re.sub(
+                        r'^heroImage:.*$',
+                        f'heroImage: "{image_rel_path}"',
+                        existing_content,
+                        flags=re.MULTILINE
+                    )
+                    if new_content != existing_content:
+                        md_path.write_text(new_content, encoding='utf-8')
+                        logger.info(f'  🔄 更新已有文章的 heroImage: {msg_id}')
+                else:
+                    logger.info(f'  ⏭️ 已有文章，无图片，跳过: {msg_id}')
+                new_last_id = msg_id
+                total_synced += 1
+            else:
+                create_post(title, full_content, date_str, msg_id, image_rel_path)
+                new_last_id = msg_id
+                total_synced += 1
 
         # 确认已读的 update_id，防止下次重复获取
         requests.post(f'{API_BASE}/getUpdates', timeout=30, data={'offset': max_update_id + 1})
 
     if total_synced > 0:
-        save_state(new_last_id)
-        logger.info(f'🎉 同步完成！新增 {total_synced} 篇文章，最新 message_id: {new_last_id}')
+        if not os.getenv('DRY_RUN'):
+            save_state(new_last_id)
+            logger.info(f'🎉 同步完成！新增 {total_synced} 篇文章，最新 message_id: {new_last_id}')
+        else:
+            logger.info(f'🎉 同步完成（DRY_RUN）！处理 {total_synced} 篇，未更新 sync_state')
     else:
         logger.info('✅ 没有新消息需要同步')
 
