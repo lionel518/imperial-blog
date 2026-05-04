@@ -2,6 +2,8 @@ import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import { SITE } from "@/config";
 import { getPath } from "@/utils/getPath";
+import getUniqueTags from "@/utils/getUniqueTags";
+import getSortedPosts from "@/utils/getSortedPosts";
 
 interface SitemapUrl {
   url: string;
@@ -21,10 +23,11 @@ function xmlEscape(str: string): string {
 
 export async function GET(): Promise<Response> {
   const posts = await getCollection("blog", ({ data }) => !data.draft);
+  const sortedPosts = getSortedPosts(posts);
 
   const siteUrl = SITE.website.replace(/\/$/, "");
 
-  const postUrls: SitemapUrl[] = posts.map(post => ({
+  const postUrls: SitemapUrl[] = sortedPosts.map(post => ({
     url: `${siteUrl}${getPath(post.id, post.filePath)}/`,
     lastmod: post.data.pubDatetime.toISOString().split("T")[0],
     changefreq: "weekly",
@@ -32,14 +35,9 @@ export async function GET(): Promise<Response> {
   }));
 
   // Tag pages
-  const tagSet = new Set<string>();
-  for (const post of posts) {
-    for (const tag of post.data.tags || []) {
-      tagSet.add(tag);
-    }
-  }
-  const tagUrls: SitemapUrl[] = Array.from(tagSet).map(tag => ({
-    url: `${siteUrl}/tags/${encodeURIComponent(tag)}/`,
+  const tagSet = getUniqueTags(posts);
+  const tagUrls: SitemapUrl[] = tagSet.map(({ tag }) => ({
+    url: `${siteUrl}/tags/${tag}/`,
     lastmod: new Date().toISOString().split("T")[0],
     changefreq: "weekly",
     priority: 0.5,
@@ -47,7 +45,7 @@ export async function GET(): Promise<Response> {
 
   // Pagination pages
   const postsPerPage = SITE.postPerPage || 4;
-  const totalPages = Math.ceil(posts.length / postsPerPage);
+  const totalPages = Math.ceil(sortedPosts.length / postsPerPage);
   const pageUrls: SitemapUrl[] = Array.from({ length: totalPages }, (_, i) => ({
     url: `${siteUrl}/posts/${i > 0 ? `${i + 1}/` : ""}`,
     lastmod: new Date().toISOString().split("T")[0],
@@ -57,7 +55,6 @@ export async function GET(): Promise<Response> {
 
   const allUrls = [
     { url: siteUrl + "/", lastmod: new Date().toISOString().split("T")[0], changefreq: "daily", priority: 1.0 },
-    { url: `${siteUrl}/about/`, lastmod: new Date().toISOString().split("T")[0], changefreq: "monthly", priority: 0.4 },
     { url: `${siteUrl}/tags/`, lastmod: new Date().toISOString().split("T")[0], changefreq: "weekly", priority: 0.5 },
     { url: `${siteUrl}/search/`, lastmod: new Date().toISOString().split("T")[0], changefreq: "monthly", priority: 0.3 },
     ...pageUrls,
