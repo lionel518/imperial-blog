@@ -1,0 +1,10 @@
+name = "telegram-blog-sync"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+GITHUB_REPO = "lionel518/imperial-blog"
+BLOG_POSTS_DIR = "src/content/blog"
+IMAGE_ASSETS_DIR = "public/assets/blog"
+
+
