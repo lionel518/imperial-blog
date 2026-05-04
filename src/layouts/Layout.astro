@@ -84,6 +84,8 @@ const structuredData = pubDatetime
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href={canonicalURL} />
+    <link rel="alternate" hreflang="zh-Hans" href={canonicalURL} />
+    <link rel="alternate" hreflang="x-default" href={canonicalURL} />
     <meta name="generator" content={Astro.generator} />
 
     <!-- Load Font -->
@@ -132,6 +134,7 @@ const structuredData = pubDatetime
     <meta property="twitter:title" content={title} />
     <meta property="twitter:description" content={description} />
     <meta property="twitter:image" content={socialImageURL} />
+    <meta property="twitter:site" content="@QiKan2026" />
 
     <!-- Google JSON-LD Structured data -->
     <script
