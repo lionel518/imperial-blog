@@ -87,6 +87,11 @@ export default {
         return new Response('OK (has buttons, skipped)', { status: 200 });
       }
 
+      // 跳过纯文字消息（只发文字不带图片的不算正式帖子）
+      if (text && !photo) {
+        return new Response('OK (text-only, skipped)', { status: 200 });
+      }
+
       // 跳过空消息
       if (!text && !photo) {
         return new Response('OK', { status: 200 });
