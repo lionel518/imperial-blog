@@ -11,6 +11,22 @@
 const TELEGRAM_API = 'https://api.telegram.org';
 const GITHUB_API = 'https://api.github.com';
 
+// 可靠地将 Uint8Array 转为 base64（适用于任意字节值，包括 >= 0x80）
+function uint8ToBase64(uint8) {
+  let binary = '';
+  for (let i = 0; i < uint8.length; i++) {
+    binary += String.fromCharCode(uint8[i]);
+  }
+  return btoa(binary);
+}
+
+// 将任意 Unicode 字符串可靠地转为 base64（Cloudflare Workers 专用）
+async function stringToBase64(str) {
+  const encoder = new TextEncoder();
+  const uint8 = encoder.encode(str);
+  return uint8ToBase64(uint8);
+}
+
 async function uploadGitHubFile(token, repo, path, content, message) {
   const url = `${GITHUB_API}/repos/${repo}/contents/${path}`;
   
@@ -160,15 +176,11 @@ ${text}
       if (imageContent) {
         const imgPath = `${imageDir}/${msgId}.jpg`;
         const uint8 = new Uint8Array(imageContent);
-        let binary = '';
-        for (let i = 0; i < uint8.length; i++) {
-          binary += String.fromCharCode(uint8[i]);
-        }
         await uploadGitHubFile(
           env.GITHUB_TOKEN,
           repo,
           imgPath,
-          btoa(binary),
+          uint8ToBase64(uint8),
           `Add image for post ${msgId}`
         );
       }
@@ -178,7 +190,7 @@ ${text}
         env.GITHUB_TOKEN,
         repo,
         `${blogDir}/${msgId}.md`,
-        btoa(unescape(encodeURIComponent(markdownContent))),
+        await stringToBase64(markdownContent),
         `Sync post ${msgId}: ${title.slice(0, 30)}`
       );
 
