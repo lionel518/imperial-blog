@@ -154,6 +154,31 @@ export default {
         }
       }
 
+      // 解析 message entities，提取 hashtag 作为标签
+      const hashtagSet = new Set();
+      if (msg.entities && Array.isArray(msg.entities)) {
+        for (const entity of msg.entities) {
+          if (entity.type === 'hashtag') {
+            const hashtagText = text.slice(entity.offset, entity.offset + entity.length);
+            // 去掉 # 符号，保留标签内容
+            const tag = hashtagText.replace(/^#/, '').trim();
+            if (tag) hashtagSet.add(tag);
+          }
+        }
+      }
+      // 如果 entity 解析不到，备用：直接从文本中正则匹配
+      if (hashtagSet.size === 0) {
+        const hashtagRegex = /#[^\s#]+/g;
+        let match;
+        while ((match = hashtagRegex.exec(text)) !== null) {
+          const tag = match[0].replace(/^#/, '').trim();
+          if (tag) hashtagSet.add(tag);
+        }
+      }
+      const tagsLine = hashtagSet.size > 0
+        ? `tags: [${Array.from(hashtagSet).map(t => `"${t}"`).join(', ')}]`
+        : 'tags: ["自动同步"]';
+
       // 构建 markdown 内容
       const heroImage = imageRelPath ? `heroImage: "${imageRelPath}"` : 'heroImage: ""';
       const markdownContent = `---
@@ -161,7 +186,7 @@ title: "${safeTitle}"
 pubDatetime: ${date}
 description: "${desc}"
 ${heroImage}
-tags: ["自动同步"]
+${tagsLine}
 ---
 
 ${text}
