@@ -16,6 +16,7 @@ type Props = {
   modDatetime?: Date | null;
   scrollSmooth?: boolean;
   tags?: string[];
+  breadcrumbJsonLd?: string;
 };
 
 const {
@@ -29,6 +30,7 @@ const {
   modDatetime,
   scrollSmooth = false,
   tags = [],
+  breadcrumbJsonLd,
 } = Astro.props;
 
 const socialImageURL = new URL(ogImage, Astro.url);
@@ -137,6 +139,16 @@ const structuredData = pubDatetime
       is:inline
       set:html={JSON.stringify(structuredData)}
     />
+
+    {
+      breadcrumbJsonLd && (
+        <script
+          type="application/ld+json"
+          is:inline
+          set:html={breadcrumbJsonLd}
+        />
+      )
+    }
 
     <!-- Enable RSS feed auto-discovery  -->
     <!-- https://docs.astro.build/en/recipes/rss/#enabling-rss-feed-auto-discovery -->
