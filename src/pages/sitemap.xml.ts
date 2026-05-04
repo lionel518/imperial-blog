@@ -56,6 +56,7 @@ export async function GET(): Promise<Response> {
   const allUrls = [
     { url: siteUrl + "/", lastmod: new Date().toISOString().split("T")[0], changefreq: "daily", priority: 1.0 },
     { url: `${siteUrl}/tags/`, lastmod: new Date().toISOString().split("T")[0], changefreq: "weekly", priority: 0.5 },
+    { url: `${siteUrl}/about/`, lastmod: new Date().toISOString().split("T")[0], changefreq: "monthly", priority: 0.4 },
     { url: `${siteUrl}/search/`, lastmod: new Date().toISOString().split("T")[0], changefreq: "monthly", priority: 0.3 },
     ...pageUrls,
     ...tagUrls,
