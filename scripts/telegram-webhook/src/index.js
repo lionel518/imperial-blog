@@ -82,6 +82,11 @@ export default {
       const text = msg.caption || msg.text || '';
       const photo = msg.photo;
 
+      // 跳过带按钮的消息（广告、投票等）
+      if (msg.reply_markup?.inline_keyboard?.length > 0) {
+        return new Response('OK (has buttons, skipped)', { status: 200 });
+      }
+
       // 跳过空消息
       if (!text && !photo) {
         return new Response('OK', { status: 200 });
