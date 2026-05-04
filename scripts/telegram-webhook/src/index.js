@@ -124,8 +124,10 @@ export default {
       // 提取标题（第一行，最多60字符）
       const title = text.split('\n')[0].slice(0, 60) || `Post ${msgId}`;
       const date = new Date(msg.date * 1000).toISOString();
-      const safeTitle = title.replace(/"/g, '\\"');
-      const desc = text.split('\n').slice(1).join(' ').slice(0, 150).replace(/"/g, '\\"') || title;
+      const safeTitle = title.replace(/\"/g, '\\"');
+      // 从正文（标题之后）提取 description，至少需要 20 字符才算有效摘要，否则留空让主题使用 og description
+      const rawDesc = text.split('\n').slice(1).join(' ').replace(/\"/g, '\\"');
+      const desc = rawDesc.slice(0, 150).length >= 20 ? rawDesc.slice(0, 150) : '';
       const channelUsername = msg.chat?.username || 'QiKan2026';
       const telegramLink = `https://t.me/${channelUsername}/${msgId}`;
 
