@@ -15,6 +15,7 @@ type Props = {
   pubDatetime?: Date;
   modDatetime?: Date | null;
   scrollSmooth?: boolean;
+  tags?: string[];
 };
 
 const {
@@ -27,6 +28,7 @@ const {
   pubDatetime,
   modDatetime,
   scrollSmooth = false,
+  tags = [],
 } = Astro.props;
 
 const socialImageURL = new URL(ogImage, Astro.url);
@@ -80,6 +82,8 @@ const structuredData = {
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonicalURL} />
     <meta property="og:image" content={socialImageURL} />
+    <meta property="og:type" content={pubDatetime ? "article" : "website"} />
+    {tags.map(tag => <meta property="article:tag" content={tag} />)}
 
     <!-- Article Published/Modified time -->
     {

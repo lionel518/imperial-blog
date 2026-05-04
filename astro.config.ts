@@ -17,6 +17,14 @@ export default defineConfig({
   integrations: [
     sitemap({
       filter: page => SITE.showArchives || !page.endsWith("/archives"),
+      serialize({ url, paginated }) {
+        return {
+          url,
+          lastmod: undefined,
+          changefreq: paginated ? undefined : 'weekly',
+          priority: paginated ? undefined : 0.7,
+        };
+      },
     }),
   ],
   markdown: {
