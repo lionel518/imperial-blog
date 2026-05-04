@@ -3,7 +3,7 @@ export const SITE = {
   author: "读库",
   profile: "https://themagazine.top/",
   desc: "分享知识与思考",
-  title: "读库",
+  title: "读库 | 精选周刊文摘分享",
   ogImage: "astropaper-og.jpg",
   lightAndDarkMode: true,
   postPerIndex: 4,
