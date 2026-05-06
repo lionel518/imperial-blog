@@ -70,7 +70,7 @@ export async function GET(): Promise<Response> {
 ${allUrls
   .map(
     entry => `  <url>
-    <loc>${xmlEscape(entry.url)}</loc>
+    <loc>${xmlEscape(encodeURI(entry.url))}</loc>
     <lastmod>${entry.lastmod}</lastmod>${entry.changefreq ? `\n    <changefreq>${entry.changefreq}</changefreq>` : ""}${entry.priority !== undefined ? `\n    <priority>${entry.priority.toFixed(1)}</priority>` : ""}
   </url>`
   )
