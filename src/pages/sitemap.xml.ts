@@ -23,13 +23,12 @@ function xmlEscape(str: string): string {
 
 export async function GET(): Promise<Response> {
   const posts = await getCollection("blog", ({ data }) => !data.draft);
-  const sortedPosts = getSortedPosts(posts);
 
   const siteUrl = SITE.website.replace(/\/$/, "");
 
-  const postUrls: SitemapUrl[] = sortedPosts.map(post => ({
+  const postUrls: SitemapUrl[] = posts.map(post => ({
     url: `${siteUrl}${getPath(post.id, post.filePath)}/`,
-    lastmod: post.data.pubDatetime.toISOString().split("T")[0],
+    lastmod: new Date(post.data.modDatetime ?? post.data.pubDatetime).toISOString().split("T")[0],
     changefreq: "weekly",
     priority: 0.8,
   }));
@@ -44,6 +43,7 @@ export async function GET(): Promise<Response> {
   }));
 
   // Pagination pages
+  const sortedPosts = getSortedPosts(posts);
   const postsPerPage = SITE.postPerPage || 4;
   const totalPages = Math.ceil(sortedPosts.length / postsPerPage);
   const pageUrls: SitemapUrl[] = Array.from({ length: totalPages }, (_, i) => ({
