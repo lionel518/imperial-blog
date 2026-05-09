@@ -33,6 +33,7 @@ const {
   timezone,
   tags,
   hideEditPost,
+  archiveAnalysis,
 } = post.data;
 
 const { Content } = await render(post);
@@ -123,6 +124,18 @@ const nextPost =
     >
       <Content />
     </article>
+
+    <!-- 档案分析（原创内容，提升 AdSense 过审几率） -->
+    {
+      post.data.archiveAnalysis && (
+        <div class="my-8 p-4 border border-dashed rounded-lg bg-muted/30">
+          <h3 class="text-lg font-semibold mb-2">📚 档案分析</h3>
+          <p class="text-sm text-muted-foreground leading-relaxed">
+            {post.data.archiveAnalysis}
+          </p>
+        </div>
+      )
+    }
 
     <!-- Google AdSense 广告 -->
     <div class="my-8">
