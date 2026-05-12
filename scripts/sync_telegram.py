@@ -136,8 +136,14 @@ def sync_channel():
     last_synced_id = int(state.get('last_message_id', 0))
     logger.info(f'📍 上次同步到 message_id: {last_synced_id}')
 
-    # 如果指定了 BACKFILL_FROM 环境变量，从该 ID 开始重新拉取（用于补全缺失的图片）
-    # 使用方式：BACKFILL_FROM=6900 python sync_telegram.py
+    # 优先级 1: MESSAGE_ID 由 webhook workflow_dispatch 传入（实时触发模式）
+    # 从该 message_id - 1 开始同步，触发后新消息都会被处理
+    message_id = os.getenv('MESSAGE_ID')
+    if message_id:
+        last_synced_id = max(0, int(message_id) - 1)
+        logger.info(f'🔔 Webhook 触发模式：从 message_id {last_synced_id + 1} 开始实时同步')
+
+    # 优先级 2: BACKFILL_FROM 用于手动补全缺失图片
     backfill_from = os.getenv('BACKFILL_FROM')
     if backfill_from:
         last_synced_id = max(0, int(backfill_from) - 1)

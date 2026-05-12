@@ -2,8 +2,8 @@ export const SITE = {
   website: "https://themagazine.top/", // replace this with your deployed domain
   author: "读库",
   profile: "https://themagazine.top/",
-  desc: "分享知识与思考",
-  title: "读库 - 分享知识与思考",
+  desc: "读库数字档案馆 — 个人学习资料存档，收录财经、国际刊物、人文生活等优质期刊文摘，供学习研究之用",
+  title: "读库 - 个人学习数字档案馆",
   ogImage: "astropaper-og.jpg",
   lightAndDarkMode: true,
   postPerIndex: 4,
