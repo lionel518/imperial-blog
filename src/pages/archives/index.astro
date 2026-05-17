@@ -58,7 +58,7 @@ const months = [
                     <span class="font-bold">{months[Number(month) - 1]}</span>
                     <sup class="text-xs">{monthGroup.length}</sup>
                   </div>
-                  <ul>
+                  <ul class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {monthGroup
                       .sort(
                         (a, b) =>
