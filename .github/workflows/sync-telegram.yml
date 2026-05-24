@@ -51,8 +51,9 @@ jobs:
           git add src/content/blog/
           git add public/assets/blog/ 2>/dev/null || true
           git add scripts/sync_state.json 2>/dev/null || true
-          # 先拉取远程更新
-          git pull origin main --rebase || true
-          # 仅在有变动时提交，防止空提交报错
+          # Fetch and rebase on latest remote main to avoid diverged branch errors
+          git fetch origin main
+          git rebase origin/main || true
+          # Only commit if there are actual changes
           git diff --quiet && git diff --staged --quiet || \
             (git commit -m "chore: sync telegram posts" && git push)
