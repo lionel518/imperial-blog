@@ -8,6 +8,15 @@ on:
         description: 'Telegram message_id — 从该 ID 开始同步（留空则从 sync_state 继续）'
         required: false
         type: string
+      backfill_from:
+        description: 'BACKFILL_FROM — 从该 message_id 起重新拉取（仅补缺失图片）'
+        required: false
+        type: string
+      rewrite_body:
+        description: 'REWRITE_BODY — 用 TG 全文重写已有文章的正文（修复历史空壳页，保留 tags/heroImage）'
+        required: false
+        type: boolean
+        default: false
   # 定时兜底（每5分钟，防止 webhook 漏发）
   schedule:
     - cron: '*/5 * * * *'
@@ -40,6 +49,9 @@ jobs:
           TELEGRAM_CHANNEL: ${{ secrets.TELEGRAM_CHANNEL }}
           # 优先级：手动传入 message_id > 空（走 sync_state）
           MESSAGE_ID: ${{ inputs.message_id }}
+          BACKFILL_FROM: ${{ inputs.backfill_from }}
+          # 仅在手动触发且显式勾选时生效；定时任务永远为 false
+          REWRITE_BODY: ${{ inputs.rewrite_body && '1' || '' }}
         run: |
           cd scripts
           python sync_telegram.py
