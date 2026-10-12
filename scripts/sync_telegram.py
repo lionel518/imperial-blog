@@ -141,12 +141,18 @@ def get_archive_analysis(title):
 
 
 def create_post(title, content, date_str, msg_id, image_rel_path=None):
-    """创建 Markdown 文章文件"""
+    """创建 Markdown 文章文件
+
+    content 是 TG 全文（已转 Markdown）。正文写入全文，description 取首个非空行，
+    避免页面退化成「标题 + 外链」的跳转页（AdSense thin content 的主因）。
+    """
     BLOG_POSTS_DIR.mkdir(parents=True, exist_ok=True)
     filepath = BLOG_POSTS_DIR / f'{msg_id}.md'
 
     safe_title = title.replace('"', '\\"')[:60]
-    desc_lines = content.split('\n')
+    body = (content or '').strip()
+    # 摘要取首个非空行，避免 TG caption 以空行开头时 description 变空
+    desc_lines = [ln.strip() for ln in body.split('\n') if ln.strip()]
     safe_desc = desc_lines[0][:150] if desc_lines else ''
     safe_desc = safe_desc.replace('"', '\\"')
 
@@ -165,7 +171,9 @@ heroImage: "{image_rel_path if image_rel_path else ''}"
 tags: ["自动同步"]
 ---
 
-{safe_title}
+{body}
+
+---
 
 📌 [查看 Telegram 频道原文]({telegram_link})
 """
