@@ -140,14 +140,11 @@ def get_archive_analysis(title):
     return "本档案收录优质期刊文摘，内容涵盖政治、经济、科技、文化等领域，适合学习研究参考。"
 
 
-def create_post(title, content, date_str, msg_id, image_rel_path=None, tags_line=None):
+def create_post(title, content, date_str, msg_id, image_rel_path=None):
     """创建 Markdown 文章文件
 
     content 是 TG 全文（已转 Markdown）。正文写入全文，description 取首个非空行，
     避免页面退化成「标题 + 外链」的跳转页（AdSense thin content 的主因）。
-
-    tags_line：重写已有文章时传入其原有 `tags: [...]` 行，保留手工分类；
-    新建文章不传，回退到 ["自动同步"]。
     """
     BLOG_POSTS_DIR.mkdir(parents=True, exist_ok=True)
     filepath = BLOG_POSTS_DIR / f'{msg_id}.md'
@@ -171,7 +168,7 @@ pubDatetime: {date_str}
 description: "{safe_desc}"
 archiveAnalysis: "{archive_analysis}"
 heroImage: "{image_rel_path if image_rel_path else ''}"
-tags: {tags_line or '["自动同步"]'}
+tags: ["自动同步"]
 ---
 
 {body}
@@ -287,15 +284,6 @@ def sync_channel():
 
             # 下载图片（BACKFILL 模式：图片缺失也重新下载）
             image_rel_path = None
-            existing_image = None
-            existing_tags_line = None
-            md_preexisting = (BLOG_POSTS_DIR / f'{msg_id}.md').exists()
-            if md_preexisting:
-                prior = (BLOG_POSTS_DIR / f'{msg_id}.md').read_text(encoding='utf-8')
-                m = re.search(r'^heroImage: "(.*)"$', prior, flags=re.MULTILINE)
-                existing_image = m.group(1) if m else None
-                mt = re.search(r'^tags: (.*)$', prior, flags=re.MULTILINE)
-                existing_tags_line = mt.group(1).strip() if mt else None
             photo = msg.get('photo')
             logger.info(f'  🖼️ has_photo={bool(photo)}')
             if photo:
@@ -340,15 +328,6 @@ def sync_channel():
             md_path = BLOG_POSTS_DIR / f'{msg_id}.md'
             if md_path.exists():
                 existing_content = md_path.read_text(encoding='utf-8')
-                # REWRITE_BODY：用 TG 全文重写正文，修复历史空壳页
-                if os.getenv('REWRITE_BODY'):
-                    create_post(title, full_content, date_str, msg_id,
-                                image_rel_path or existing_image,
-                                tags_line=existing_tags_line)
-                    logger.info(f'  ♻️ 已用 TG 全文重写正文: {msg_id} tags={existing_tags_line}')
-                    new_last_id = msg_id
-                    total_synced += 1
-                    continue
                 if image_rel_path:
                     # 更新 heroImage
                     new_content = re.sub(
