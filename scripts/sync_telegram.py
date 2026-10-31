@@ -274,6 +274,11 @@ def sync_channel():
             # 提取标题
             title = raw_content.split('\n')[0][:60] if has_content else ''
 
+            # 无文字的消息（纯图片/贴纸等）无法成文，跳过
+            if not has_content:
+                logger.info(f'  ⏭️ 无文字内容，跳过: message_id={msg_id}')
+                continue
+
             # 检查按钮
             reply_markup = msg.get('reply_markup')
             has_buttons = bool(reply_markup and reply_markup.get('inline_keyboard'))
@@ -316,8 +321,8 @@ def sync_channel():
                         else:
                             logger.info(f'  ❌ getFile 失败: {file_data}')
             else:
-                logger.info(f'  ⏭️ 跳过纯文字帖子 (无图片): message_id={msg_id}')
-                continue
+                # 纯文字帖也要生成文章（期刊摘要常为纯文字），图片留空即可
+                logger.info(f'  📝 纯文字帖（无图片），继续生成文章: message_id={msg_id}')
 
             # 日期
             date_ts = msg.get('date', 0)
